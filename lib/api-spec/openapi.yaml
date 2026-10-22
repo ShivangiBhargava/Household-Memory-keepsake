@@ -3,13 +3,17 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Household Memory API and Streamable HTTP MCP endpoint
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: household
+    description: Shared household memories and Alexa+ demo client
+  - name: mcp
+    description: Model Context Protocol server over Streamable HTTP
 paths:
   /healthz:
     get:
@@ -24,6 +28,182 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /household/memories:
+    get:
+      operationId: listHouseholdMemories
+      tags: [household]
+      summary: List household memories
+      parameters:
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: category
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/MemoryCategory"
+      responses:
+        "200":
+          description: Household memories
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Memory"
+    post:
+      operationId: createHouseholdMemory
+      tags: [household]
+      summary: Add a household memory
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MemoryInput"
+      responses:
+        "201":
+          description: Created household memory
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Memory"
+  /household/memories/{id}:
+    patch:
+      operationId: updateHouseholdMemory
+      tags: [household]
+      summary: Update a household memory
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MemoryUpdate"
+      responses:
+        "200":
+          description: Updated household memory
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Memory"
+        "404":
+          description: Memory not found
+    delete:
+      operationId: deleteHouseholdMemory
+      tags: [household]
+      summary: Delete a household memory
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Memory deleted
+        "404":
+          description: Memory not found
+  /household/summary:
+    get:
+      operationId: getHouseholdSummary
+      tags: [household]
+      summary: Get counts and upcoming household reminders
+      responses:
+        "200":
+          description: Household overview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseholdSummary"
+  /household/activity:
+    get:
+      operationId: listHouseholdActivity
+      tags: [household]
+      summary: List recent memory changes with attribution
+      responses:
+        "200":
+          description: Recent household activity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/HouseholdActivity"
+  /household/ask:
+    post:
+      operationId: askHouseholdMemory
+      tags: [household]
+      summary: Ask a household question using saved memories
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HouseholdQuestion"
+      responses:
+        "200":
+          description: Answer with source memories and provenance
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HouseholdAnswer"
+  /mcp:
+    get:
+      operationId: openMcpEventStream
+      tags: [mcp]
+      summary: Open an optional server-initiated MCP event stream
+      responses:
+        "200":
+          description: MCP server event stream
+          content:
+            text/event-stream:
+              schema:
+                type: string
+        "405":
+          description: Event stream not available for this client
+    post:
+      operationId: handleMcpMessage
+      tags: [mcp]
+      summary: Handle MCP JSON-RPC messages over Streamable HTTP
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/McpJsonRpcRequest"
+      responses:
+        "200":
+          description: MCP JSON-RPC response or event stream
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/McpJsonRpcResponse"
+            text/event-stream:
+              schema:
+                type: string
+        "202":
+          description: Accepted MCP notification
+        "400":
+          description: Invalid MCP request
+    delete:
+      operationId: closeMcpSession
+      tags: [mcp]
+      summary: Close an MCP session when the client requests it
+      responses:
+        "200":
+          description: Session closed
+        "405":
+          description: Sessionless transport does not support session deletion
 components:
   schemas:
     HealthStatus:
@@ -33,4 +213,183 @@ components:
           type: string
       required:
         - status
+    MemoryCategory:
+      type: string
+      enum: [location, warranty, chore, note]
+    MemoryStatus:
+      type: string
+      enum: [active, done]
+    Memory:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        details:
+          type: string
+        category:
+          $ref: "#/components/schemas/MemoryCategory"
+        location:
+          type: ["string", "null"]
+        dueDate:
+          type: ["string", "null"]
+          format: date
+        recurrence:
+          type: ["string", "null"]
+        status:
+          $ref: "#/components/schemas/MemoryStatus"
+        createdBy:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - title
+        - details
+        - category
+        - location
+        - dueDate
+        - recurrence
+        - status
+        - createdBy
+        - createdAt
+        - updatedAt
+    MemoryInput:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+        details:
+          type: string
+          minLength: 1
+        category:
+          $ref: "#/components/schemas/MemoryCategory"
+        location:
+          type: ["string", "null"]
+        dueDate:
+          type: ["string", "null"]
+          format: date
+        recurrence:
+          type: ["string", "null"]
+        createdBy:
+          type: string
+          minLength: 1
+      required:
+        - title
+        - details
+        - category
+        - createdBy
+    MemoryUpdate:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+        details:
+          type: string
+          minLength: 1
+        category:
+          $ref: "#/components/schemas/MemoryCategory"
+        location:
+          type: ["string", "null"]
+        dueDate:
+          type: ["string", "null"]
+          format: date
+        recurrence:
+          type: ["string", "null"]
+        status:
+          $ref: "#/components/schemas/MemoryStatus"
+        actor:
+          type: string
+          minLength: 1
+      minProperties: 1
+    HouseholdSummary:
+      type: object
+      properties:
+        totalMemories:
+          type: integer
+        locations:
+          type: integer
+        warranties:
+          type: integer
+        chores:
+          type: integer
+        upcoming:
+          type: array
+          items:
+            $ref: "#/components/schemas/Memory"
+        nextChore:
+          type: ["string", "null"]
+      required: [totalMemories, locations, warranties, chores, upcoming, nextChore]
+    HouseholdActivity:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        memoryId:
+          type: string
+          format: uuid
+        memoryTitle:
+          type: string
+        action:
+          type: string
+          enum: [created, updated, completed, deleted]
+        actor:
+          type: string
+        summary:
+          type: string
+        occurredAt:
+          type: string
+          format: date-time
+      required: [id, memoryId, memoryTitle, action, actor, summary, occurredAt]
+    HouseholdQuestion:
+      type: object
+      properties:
+        question:
+          type: string
+          minLength: 1
+        askedBy:
+          type: string
+          minLength: 1
+      required: [question, askedBy]
+    HouseholdAnswer:
+      type: object
+      properties:
+        answer:
+          type: string
+        sources:
+          type: array
+          items:
+            $ref: "#/components/schemas/Memory"
+        answeredAt:
+          type: string
+          format: date-time
+      required: [answer, sources, answeredAt]
+    McpJsonRpcRequest:
+      type: object
+      properties:
+        jsonrpc:
+          type: string
+          enum: ["2.0"]
+        id:
+          oneOf:
+            - type: string
+            - type: integer
+        method:
+          type: string
+        params:
+          type: object
+          additionalProperties: true
+      required: [jsonrpc, method]
+    McpJsonRpcResponse:
+      type: object
+      additionalProperties: true
 

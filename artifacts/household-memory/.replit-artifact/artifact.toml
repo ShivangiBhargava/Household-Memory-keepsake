@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Household Memory"
+description = "A self-hosted shared family memory service with a Streamable HTTP MCP endpoint, provenance-aware records for locations, warranties, and chores, and a simulated Alexa+ chat client for demos."
+version = "1.0.0"
+id = "artifacts/household-memory"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 22592
+
+[services.development]
+run = "pnpm --filter @workspace/household-memory run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/household-memory", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/household-memory/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "22592"
+BASE_PATH = "/"

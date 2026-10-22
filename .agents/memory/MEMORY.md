@@ -1,0 +1,1 @@
+- [Orval parameter export collisions](orval-param-export-collisions.md) — mixing path and query params can duplicate `*Params` exports and fail the generated barrel.
