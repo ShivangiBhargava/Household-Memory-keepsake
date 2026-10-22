@@ -1,0 +1,29 @@
+kind = "video"
+videoAspectRatio = "16:9"
+previewPath = "/household-memory-film/"
+title = "Household Memory — Animated Film"
+description = "A short animated product film introducing Keepsake Household Memory: shared household facts, recurring chores, and a Streamable HTTP MCP server for an Alexa+ demo."
+version = "1.0.0"
+id = "artifacts/household-memory-film"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/household-memory-film/" ]
+localPort = 20401
+
+[services.development]
+run = "pnpm --filter @workspace/household-memory-film run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/household-memory-film", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/household-memory-film/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "20401"
+BASE_PATH = "/household-memory-film/"
